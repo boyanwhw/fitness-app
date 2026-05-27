@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>动作库 - 健身助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="topbar">
+    <h1>📚 动作库</h1>
+  </div>
+
+  <div class="container">
+    <div class="tags" id="muscleTags">
+      <span class="tag active" data-group="all">全部</span>
+      <span class="tag" data-group="胸">胸</span>
+      <span class="tag" data-group="背">背</span>
+      <span class="tag" data-group="腿">腿</span>
+      <span class="tag" data-group="肩">肩</span>
+      <span class="tag" data-group="手臂">手臂</span>
+      <span class="tag" data-group="核心">核心</span>
+    </div>
+
+    <div id="exerciseList"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html"><span class="nav-icon">📊</span>首页</a>
+    <a href="workout.html"><span class="nav-icon">🏋️</span>训练</a>
+    <a href="exercises.html" class="active"><span class="nav-icon">📚</span>动作库</a>
+    <a href="diary.html"><span class="nav-icon">📝</span>日记</a>
+  </nav>
+
+  <script src="js/app.js"></script>
+  <script>
+    let allExercises = [];
+    let currentGroup = 'all';
+
+    async function loadExercises() {
+      await requireAuth();
+      const { data } = await supabase
+        .from('exercises')
+        .select('*')
+        .order('muscle_group')
+        .order('name');
+      allExercises = data || [];
+      renderExercises();
+    }
+
+    function renderExercises() {
+      const filtered = currentGroup === 'all'
+        ? allExercises
+        : allExercises.filter(e => e.muscle_group === currentGroup);
+
+      const container = document.getElementById('exerciseList');
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>该肌群还没有动作</p></div>';
+        return;
+      }
+
+      const groups = {};
+      filtered.forEach(e => {
+        if (!groups[e.muscle_group]) groups[e.muscle_group] = [];
+        groups[e.muscle_group].push(e);
+      });
+
+      container.innerHTML = Object.entries(groups).map(([group, exercises]) => `
+        <div class="mb-16">
+          <h3 style="color:var(--accent);margin-bottom:8px;">${group}</h3>
+          ${exercises.map(e => `
+            <div class="card" style="cursor:pointer;" onclick="showDetail('${e.id}')">
+              <div class="workout-name">${e.name}</div>
+              <div class="workout-detail mt-8">${e.description || '暂无说明'}</div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    function showDetail(id) {
+      const ex = allExercises.find(e => e.id === id);
+      if (ex) {
+        alert(`${ex.name}\n\n肌群: ${ex.muscle_group}\n说明: ${ex.description || '暂无'}`);
+      }
+    }
+
+    document.getElementById('muscleTags').addEventListener('click', (e) => {
+      if (e.target.classList.contains('tag')) {
+        document.querySelectorAll('.tag').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        currentGroup = e.target.dataset.group;
+        renderExercises();
+      }
+    });
+
+    loadExercises();
+  </script>
+</body>
+</html>
