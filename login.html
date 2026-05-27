@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>登录 - 健身助手</title>
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/app.js"></script>
 </head>
 <body>
   <div class="container" style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding-bottom:20px;">
@@ -46,6 +44,8 @@
     <p id="msg" class="text-center mt-16" style="min-height:24px;"></p>
   </div>
 
+  <script src="js/supabase.min.js"></script>
+  <script src="js/app.js"></script>
   <script>
     const msg = document.getElementById('msg');
 
@@ -54,11 +54,16 @@
       msg.style.color = isError ? 'var(--danger)' : 'var(--accent)';
     }
 
+    if (typeof supabase === 'undefined') {
+      showMsg('加载失败，请刷新页面重试', true);
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
 
+      showMsg('登录中...', false);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         showMsg('登录失败: ' + error.message, true);
@@ -72,11 +77,12 @@
       const email = document.getElementById('regEmail').value;
       const password = document.getElementById('regPassword').value;
 
+      showMsg('注册中...', false);
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
         showMsg('注册失败: ' + error.message, true);
       } else {
-        showMsg('注册成功！请查看邮箱确认（如未收到可忽略，直接登录即可）', false);
+        showMsg('注册成功！现在可以登录了', false);
       }
     });
   </script>
