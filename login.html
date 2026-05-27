@@ -55,7 +55,15 @@
     }
 
     if (typeof supabase === 'undefined') {
-      showMsg('加载失败，请刷新页面重试', true);
+      showMsg('JS 加载失败，请刷新页面重试', true);
+    }
+
+    async function trySignUp(email, password) {
+      return supabase.auth.signUp({ email, password });
+    }
+
+    async function trySignIn(email, password) {
+      return supabase.auth.signInWithPassword({ email, password });
     }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -64,11 +72,15 @@
       const password = document.getElementById('loginPassword').value;
 
       showMsg('登录中...', false);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        showMsg('登录失败: ' + error.message, true);
-      } else {
-        window.location.href = 'index.html';
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          showMsg('登录失败: ' + error.message, true);
+        } else {
+          window.location.href = 'index.html';
+        }
+      } catch (err) {
+        showMsg('网络错误: ' + err.message, true);
       }
     });
 
@@ -78,11 +90,15 @@
       const password = document.getElementById('regPassword').value;
 
       showMsg('注册中...', false);
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        showMsg('注册失败: ' + error.message, true);
-      } else {
-        showMsg('注册成功！现在可以登录了', false);
+      try {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          showMsg('注册失败: ' + error.message, true);
+        } else {
+          showMsg('注册成功！现在可以登录了', false);
+        }
+      } catch (err) {
+        showMsg('网络错误: ' + err.message, true);
       }
     });
   </script>
