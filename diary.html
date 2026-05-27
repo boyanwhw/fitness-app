@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>训练日记 - 健身助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="topbar">
+    <h1>📝 训练日记</h1>
+  </div>
+
+  <div class="container">
+    <div class="form-group">
+      <label>查看日期</label>
+      <input type="date" id="dateFilter">
+    </div>
+
+    <button class="btn btn-outline mb-16" onclick="showAll()">📅 显示全部记录</button>
+
+    <div id="diaryList"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html"><span class="nav-icon">📊</span>首页</a>
+    <a href="workout.html"><span class="nav-icon">🏋️</span>训练</a>
+    <a href="exercises.html"><span class="nav-icon">📚</span>动作库</a>
+    <a href="diary.html" class="active"><span class="nav-icon">📝</span>日记</a>
+  </nav>
+
+  <script src="js/app.js"></script>
+  <script>
+    let user = null;
+    let allRecords = [];
+
+    async function initPage() {
+      user = await requireAuth();
+      if (!user) return;
+
+      document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0];
+
+      document.getElementById('dateFilter').addEventListener('change', (e) => {
+        filterByDate(e.target.value);
+      });
+
+      await showAll();
+    }
+
+    async function showAll() {
+      const { data } = await supabase
+        .from('workout_records')
+        .select('id, sets, reps, weight_kg, notes, created_at, exercises!inner(name, muscle_group)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      allRecords = data || [];
+      renderRecords(allRecords);
+    }
+
+    function filterByDate(dateStr) {
+      const filtered = allRecords.filter(r => r.created_at.startsWith(dateStr));
+      renderRecords(filtered, dateStr);
+    }
+
+    function renderRecords(records, dateStr) {
+      const container = document.getElementById('diaryList');
+
+      if (records.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><p>${dateStr ? dateStr + ' 没有训练记录' : '还没有训练记录'}</p><a href="workout.html" class="btn btn-primary mt-16">去训练</a></div>`;
+        return;
+      }
+
+      const grouped = {};
+      records.forEach(r => {
+        const day = r.created_at.split('T')[0];
+        if (!grouped[day]) grouped[day] = [];
+        grouped[day].push(r);
+      });
+
+      container.innerHTML = Object.entries(grouped).map(([day, dayRecords]) => {
+        const totalSets = dayRecords.reduce((sum, r) => sum + r.sets, 0);
+        const exerciseNames = [...new Set(dayRecords.map(r => r.exercises.name))];
+        const dateLabel = new Date(day).toLocaleDateString('zh-CN', {
+          month: 'long', day: 'numeric', weekday: 'short'
+        });
+
+        return `
+          <div class="card mb-16">
+            <div class="flex-between mb-8">
+              <h3 style="color:var(--accent);">${dateLabel}</h3>
+              <span class="text-2">${totalSets} 组</span>
+            </div>
+            <div class="text-2 mb-8" style="font-size:13px;">训练了 ${exerciseNames.join('、')}</div>
+            ${dayRecords.map(r => `
+              <div class="workout-item">
+                <div>
+                  <div class="workout-name">${r.exercises.name}</div>
+                  <div class="workout-detail">${r.sets}组 × ${r.reps}次 ${r.weight_kg ? r.weight_kg + 'kg' : '自重'}</div>
+                  ${r.notes ? `<div class="workout-detail">📝 ${r.notes}</div>` : ''}
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">删除</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function deleteRecord(id) {
+      if (!confirm('确定要删除这条记录吗？')) return;
+      await supabase.from('workout_records').delete().eq('id', id);
+      allRecords = allRecords.filter(r => r.id !== id);
+      const dateFilter = document.getElementById('dateFilter').value;
+      const filtered = allRecords.filter(r => r.created_at.startsWith(dateFilter));
+      renderRecords(filtered, dateFilter);
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
