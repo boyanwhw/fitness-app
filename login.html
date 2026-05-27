@@ -44,26 +44,14 @@
     <p id="msg" class="text-center mt-16" style="min-height:24px;"></p>
   </div>
 
-  <script src="js/supabase.min.js"></script>
-  <script src="js/app.js"></script>
-  <script>
+  <script type="module">
+    import { supabase } from './js/app.js';
+
     const msg = document.getElementById('msg');
 
     function showMsg(text, isError) {
       msg.textContent = text;
       msg.style.color = isError ? 'var(--danger)' : 'var(--accent)';
-    }
-
-    if (typeof supabase === 'undefined') {
-      showMsg('JS 加载失败，请刷新页面重试', true);
-    }
-
-    async function trySignUp(email, password) {
-      return supabase.auth.signUp({ email, password });
-    }
-
-    async function trySignIn(email, password) {
-      return supabase.auth.signInWithPassword({ email, password });
     }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {

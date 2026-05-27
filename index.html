@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>💪 健身助手</h1>
-    <button class="btn btn-sm btn-outline" onclick="signOut()">退出</button>
+    <button class="btn btn-sm btn-outline" id="signOutBtn">退出</button>
   </div>
 
   <div class="container">
@@ -58,9 +58,12 @@
     </a>
   </nav>
 
-  <script src="js/supabase.min.js"></script>
-  <script src="js/app.js"></script>
-  <script>
+  <script type="module">
+    import { supabase, requireAuth, signOut } from './js/app.js';
+
+    window.signOut = signOut;
+    document.getElementById('signOutBtn').addEventListener('click', signOut);
+
     async function loadDashboard() {
       const user = await requireAuth();
       if (!user) return;

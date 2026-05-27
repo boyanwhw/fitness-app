@@ -17,7 +17,7 @@
       <input type="date" id="dateFilter">
     </div>
 
-    <button class="btn btn-outline mb-16" onclick="showAll()">📅 显示全部记录</button>
+    <button class="btn btn-outline mb-16" id="showAllBtn">📅 显示全部记录</button>
 
     <div id="diaryList"></div>
   </div>
@@ -29,11 +29,17 @@
     <a href="diary.html" class="active"><span class="nav-icon">📝</span>日记</a>
   </nav>
 
-  <script src="js/supabase.min.js"></script>
-  <script src="js/app.js"></script>
-  <script>
+  <script type="module">
+    import { supabase, requireAuth } from './js/app.js';
+
     let user = null;
     let allRecords = [];
+
+    document.getElementById('showAllBtn').addEventListener('click', showAll);
+    document.getElementById('diaryList').addEventListener('click', (e) => {
+      const btn = e.target.closest('.delete-diary-btn');
+      if (btn) deleteRecord(btn.dataset.id);
+    });
 
     async function initPage() {
       user = await requireAuth();
@@ -101,7 +107,7 @@
                   <div class="workout-detail">${r.sets}组 × ${r.reps}次 ${r.weight_kg ? r.weight_kg + 'kg' : '自重'}</div>
                   ${r.notes ? `<div class="workout-detail">📝 ${r.notes}</div>` : ''}
                 </div>
-                <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">删除</button>
+                <button class="btn btn-sm btn-danger delete-diary-btn" data-id="${r.id}">删除</button>
               </div>
             `).join('')}
           </div>
