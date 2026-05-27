@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>训练 - 健身助手</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🏋️ 开始训练</h1>
+  </div>
+
+  <div class="container">
+    <div class="form-group">
+      <label>选择动作</label>
+      <select id="exerciseSelect">
+        <option value="">-- 请选择训练动作 --</option>
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="form-group">
+        <label>组数</label>
+        <input type="number" id="setsInput" value="3" min="1" max="20">
+      </div>
+      <div class="form-group">
+        <label>次数</label>
+        <input type="number" id="repsInput" value="10" min="1" max="100">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>重量（kg，可选）</label>
+      <input type="number" id="weightInput" placeholder="留空表示自重训练" step="0.5" min="0">
+    </div>
+
+    <div class="form-group">
+      <label>备注（可选）</label>
+      <input type="text" id="notesInput" placeholder="如：状态不错、最后一组力竭...">
+    </div>
+
+    <button class="btn btn-primary" onclick="saveRecord()">💾 保存记录</button>
+    <p id="saveMsg" class="text-center mt-8" style="min-height:24px;"></p>
+
+    <h3 style="margin:24px 0 12px;">本次训练记录</h3>
+    <div id="sessionRecords"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="index.html"><span class="nav-icon">📊</span>首页</a>
+    <a href="workout.html" class="active"><span class="nav-icon">🏋️</span>训练</a>
+    <a href="exercises.html"><span class="nav-icon">📚</span>动作库</a>
+    <a href="diary.html"><span class="nav-icon">📝</span>日记</a>
+  </nav>
+
+  <script src="js/app.js"></script>
+  <script>
+    let user = null;
+
+    async function initPage() {
+      user = await requireAuth();
+      if (!user) return;
+
+      const { data: exercises } = await supabase
+        .from('exercises')
+        .select('*')
+        .order('muscle_group')
+        .order('name');
+
+      const select = document.getElementById('exerciseSelect');
+      const groups = {};
+      (exercises || []).forEach(e => {
+        if (!groups[e.muscle_group]) groups[e.muscle_group] = [];
+        groups[e.muscle_group].push(e);
+      });
+
+      select.innerHTML = '<option value="">-- 请选择训练动作 --</option>';
+      Object.entries(groups).forEach(([group, exs]) => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = group;
+        exs.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = e.name;
+          optgroup.appendChild(opt);
+        });
+        select.appendChild(optgroup);
+      });
+
+      loadSessionRecords();
+    }
+
+    async function saveRecord() {
+      const exerciseId = document.getElementById('exerciseSelect').value;
+      const sets = parseInt(document.getElementById('setsInput').value);
+      const reps = parseInt(document.getElementById('repsInput').value);
+      const weight = parseFloat(document.getElementById('weightInput').value) || 0;
+      const notes = document.getElementById('notesInput').value;
+
+      if (!exerciseId) return showMsg('请先选择训练动作', true);
+      if (!sets || !reps) return showMsg('请填写组数和次数', true);
+
+      const { error } = await supabase.from('workout_records').insert({
+        user_id: user.id,
+        exercise_id: exerciseId,
+        sets: sets,
+        reps: reps,
+        weight_kg: weight,
+        notes: notes
+      });
+
+      if (error) {
+        showMsg('保存失败: ' + error.message, true);
+      } else {
+        showMsg('保存成功！', false);
+        document.getElementById('notesInput').value = '';
+        document.getElementById('weightInput').value = '';
+        loadSessionRecords();
+      }
+    }
+
+    async function loadSessionRecords() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data } = await supabase
+        .from('workout_records')
+        .select('id, sets, reps, weight_kg, notes, created_at, exercises!inner(name, muscle_group)')
+        .eq('user_id', user.id)
+        .gte('created_at', today.toISOString())
+        .order('created_at', { ascending: false });
+
+      const records = data || [];
+      const container = document.getElementById('sessionRecords');
+
+      if (records.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>今天还没有训练记录</p></div>';
+        return;
+      }
+
+      container.innerHTML = records.map(r => `
+        <div class="card">
+          <div class="flex-between">
+            <div>
+              <div class="workout-name">${r.exercises.name}</div>
+              <div class="workout-detail">${r.sets}组 × ${r.reps}次 ${r.weight_kg ? r.weight_kg + 'kg' : '自重'}</div>
+              ${r.notes ? `<div class="workout-detail">📝 ${r.notes}</div>` : ''}
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">删除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function deleteRecord(id) {
+      if (!confirm('确定要删除这条记录吗？')) return;
+      await supabase.from('workout_records').delete().eq('id', id);
+      loadSessionRecords();
+    }
+
+    function showMsg(text, isError) {
+      const el = document.getElementById('saveMsg');
+      el.textContent = text;
+      el.style.color = isError ? 'var(--danger)' : 'var(--accent)';
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
