@@ -32,6 +32,80 @@
       </div>
     </div>
 
+    <!-- 身体数据 Hero 卡 -->
+    <div id="bodyHero">
+      <div id="bodyDataView" class="body-hero" style="display:none;">
+        <div class="hero-header">
+          <span class="hero-label">身体数据</span>
+          <button class="hero-add" id="toggleBodyFormBtn">+ 记录</button>
+        </div>
+        <div class="hero-weight" id="heroWeight">--<span class="hero-unit">kg</span></div>
+        <div class="hero-sub">
+          <span><span class="sub-label">体脂率 </span><span id="heroBf">--</span>%</span>
+        </div>
+        <div class="chart-mini"><canvas id="miniChart"></canvas></div>
+        <div class="circ-list" id="circList"></div>
+      </div>
+      <div id="bodyEmptyView" class="body-empty">
+        <div class="empty-icon">⚖️</div>
+        <p>还没有身体数据</p>
+        <button class="btn-start" id="startBodyFormBtn">记录第一次测量</button>
+      </div>
+    </div>
+
+    <div class="body-form-wrap" id="bodyFormWrap">
+      <div class="body-form">
+        <div class="form-hint">体重必填，其余可选</div>
+        <div class="form-row">
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">体重 (kg) *</label>
+            <input type="number" id="bfWeight" placeholder="例: 78.5" step="0.1" min="30" max="300">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">体脂率 (%)</label>
+            <input type="number" id="bfBodyFat" placeholder="例: 18.2" step="0.1" min="2" max="60">
+          </div>
+        </div>
+        <div class="form-section-label">围度 (cm)</div>
+        <div class="form-row">
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">胸围</label>
+            <input type="number" id="bfChest" placeholder="例: 96" step="0.5" min="30" max="200">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">腰围</label>
+            <input type="number" id="bfWaist" placeholder="例: 82" step="0.5" min="30" max="200">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">臀围</label>
+            <input type="number" id="bfHip" placeholder="例: 95" step="0.5" min="30" max="200">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">臂围</label>
+            <input type="number" id="bfArm" placeholder="例: 36" step="0.5" min="10" max="100">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--violet-dim);">腿围</label>
+            <input type="number" id="bfThigh" placeholder="例: 56" step="0.5" min="20" max="120">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-save" id="saveBodyBtn">保存</button>
+        <p id="bodyMsg" style="text-align:center;margin-top:6px;min-height:18px;font-size:11px;"></p>
+      </div>
+    </div>
+
+    <div class="chart-panel" id="chartPanel" style="display:none;">
+      <div class="chart-header">
+        <span class="chart-title">体重趋势</span>
+        <div class="chart-tabs">
+          <button class="chart-tab active" data-days="7">7天</button>
+          <button class="chart-tab" data-days="30">30天</button>
+          <button class="chart-tab" data-days="90">90天</button>
+        </div>
+      </div>
+      <div class="chart-canvas"><canvas id="fullChart"></canvas></div>
+    </div>
+
     <h3 style="margin-bottom:12px;">快捷操作</h3>
     <a href="workout.html" class="btn btn-primary mb-8">🏋️ 开始训练</a>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -60,13 +134,244 @@
 
   <script type="module">
     import { supabase, requireAuth, signOut } from './js/app.js';
+    import Chart from 'https://esm.sh/chart.js@4/auto';
 
     window.signOut = signOut;
     document.getElementById('signOutBtn').addEventListener('click', signOut);
 
+    // ========== 身体数据追踪 ==========
+    let miniChart = null;
+    let fullChart = null;
+    let allTrendData = [];
+    let currentDays = 7;
+
+    async function loadBodyData(userId) {
+      const { data: latest } = await supabase
+        .from('body_measurements')
+        .select('*')
+        .eq('user_id', userId)
+        .order('measured_at', { ascending: false })
+        .limit(1);
+
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const { data: trend } = await supabase
+        .from('body_measurements')
+        .select('weight_kg, body_fat_pct, measured_at')
+        .eq('user_id', userId)
+        .gte('measured_at', ninetyDaysAgo.toISOString().split('T')[0])
+        .order('measured_at', { ascending: true });
+
+      allTrendData = trend || [];
+
+      if (latest && latest.length > 0) {
+        renderBodyHero(latest[0], allTrendData);
+        document.getElementById('bodyDataView').style.display = '';
+        document.getElementById('bodyEmptyView').style.display = 'none';
+        document.getElementById('chartPanel').style.display = '';
+      } else {
+        document.getElementById('bodyDataView').style.display = 'none';
+        document.getElementById('bodyEmptyView').style.display = '';
+        document.getElementById('chartPanel').style.display = 'none';
+      }
+    }
+
+    function renderBodyHero(latest, trend) {
+      document.getElementById('heroWeight').innerHTML = latest.weight_kg + '<span class="hero-unit">kg</span>';
+      document.getElementById('heroBf').textContent = latest.body_fat_pct != null ? latest.body_fat_pct : '--';
+
+      const circs = [
+        { key: 'chest_cm', label: '胸' },
+        { key: 'waist_cm', label: '腰' },
+        { key: 'hip_cm', label: '臀' },
+        { key: 'arm_cm', label: '臂' },
+        { key: 'thigh_cm', label: '腿' }
+      ];
+      document.getElementById('circList').innerHTML = circs
+        .map(c => `<span class="circ-item">${c.label} <span class="val">${latest[c.key] != null ? latest[c.key] : '--'}</span></span>`)
+        .join('');
+
+      renderMiniChart(trend);
+      renderFullChart(trend, currentDays);
+    }
+
+    function renderMiniChart(trend) {
+      if (miniChart) miniChart.destroy();
+      const ctx = document.getElementById('miniChart').getContext('2d');
+      const labels = trend.map(d => d.measured_at);
+      const data = trend.map(d => d.weight_kg);
+
+      miniChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            borderColor: '#a78bfa',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(139,92,246,0.1)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          },
+          interaction: { intersect: false, mode: 'index' }
+        }
+      });
+    }
+
+    function renderFullChart(trend, days) {
+      if (fullChart) fullChart.destroy();
+      const ctx = document.getElementById('fullChart').getContext('2d');
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+      const filtered = trend.filter(d => d.measured_at >= cutoffStr);
+
+      const labels = filtered.map(d => {
+        const dt = new Date(d.measured_at);
+        return (dt.getMonth() + 1) + '/' + dt.getDate();
+      });
+      const weightData = filtered.map(d => d.weight_kg);
+
+      const datasets = [{
+        label: '体重 (kg)',
+        data: weightData,
+        borderColor: '#a78bfa',
+        backgroundColor: 'rgba(139,92,246,0.1)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#a78bfa',
+        tension: 0.4,
+        fill: true
+      }];
+
+      if (filtered.some(d => d.body_fat_pct != null)) {
+        datasets.push({
+          label: '体脂率 (%)',
+          data: filtered.map(d => d.body_fat_pct),
+          borderColor: '#c4b5fd',
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          pointRadius: 2,
+          pointBackgroundColor: '#c4b5fd',
+          tension: 0.4,
+          fill: false,
+          yAxisID: 'y1'
+        });
+      }
+
+      fullChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: '#5c5c5c', font: { size: 10 }, boxWidth: 12, padding: 16 }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#3d3d3d', font: { size: 10 } },
+              grid: { color: '#1a1a1a' }
+            },
+            y: {
+              ticks: { color: '#3d3d3d', font: { size: 10 } },
+              grid: { color: '#1a1a1a' }
+            },
+            y1: {
+              position: 'right',
+              ticks: { color: '#c4b5fd', font: { size: 10 } },
+              grid: { display: false },
+              display: filtered.some(d => d.body_fat_pct != null)
+            }
+          },
+          interaction: { intersect: false, mode: 'index' }
+        }
+      });
+    }
+
+    function switchChartDays(days) {
+      currentDays = days;
+      renderFullChart(allTrendData, days);
+      document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.chart-tab[data-days="${days}"]`).classList.add('active');
+    }
+
+    function toggleBodyForm() {
+      const wrap = document.getElementById('bodyFormWrap');
+      wrap.classList.toggle('open');
+      if (wrap.classList.contains('open')) {
+        document.getElementById('bfWeight').focus();
+      }
+    }
+
+    async function saveBodyMeasurement(userId) {
+      const weight = parseFloat(document.getElementById('bfWeight').value);
+      if (!weight) {
+        showBodyMsg('请输入体重', true);
+        return;
+      }
+
+      const record = {
+        user_id: userId,
+        weight_kg: weight,
+        body_fat_pct: parseFloat(document.getElementById('bfBodyFat').value) || null,
+        chest_cm: parseFloat(document.getElementById('bfChest').value) || null,
+        waist_cm: parseFloat(document.getElementById('bfWaist').value) || null,
+        hip_cm: parseFloat(document.getElementById('bfHip').value) || null,
+        arm_cm: parseFloat(document.getElementById('bfArm').value) || null,
+        thigh_cm: parseFloat(document.getElementById('bfThigh').value) || null,
+        measured_at: new Date().toISOString().split('T')[0]
+      };
+
+      const { error } = await supabase.from('body_measurements').insert(record);
+      if (error) {
+        showBodyMsg('保存失败: ' + error.message, true);
+      } else {
+        showBodyMsg('保存成功！', false);
+        document.getElementById('bodyFormWrap').classList.remove('open');
+        ['bfWeight','bfBodyFat','bfChest','bfWaist','bfHip','bfArm','bfThigh'].forEach(id => document.getElementById(id).value = '');
+        await loadBodyData(userId);
+      }
+    }
+
+    function showBodyMsg(text, isError) {
+      const el = document.getElementById('bodyMsg');
+      el.textContent = text;
+      el.style.color = isError ? 'var(--danger)' : 'var(--violet-light)';
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+
+    // 事件绑定
+    document.getElementById('toggleBodyFormBtn').addEventListener('click', toggleBodyForm);
+    document.getElementById('startBodyFormBtn').addEventListener('click', toggleBodyForm);
+    document.getElementById('saveBodyBtn').addEventListener('click', async () => {
+      const user = await requireAuth();
+      if (user) await saveBodyMeasurement(user.id);
+    });
+    document.querySelector('.chart-tabs').addEventListener('click', (e) => {
+      if (e.target.classList.contains('chart-tab')) {
+        switchChartDays(parseInt(e.target.dataset.days));
+      }
+    });
+
+    // ========== 仪表盘 ==========
     async function loadDashboard() {
       const user = await requireAuth();
       if (!user) return;
+
+      loadBodyData(user.id);
 
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
