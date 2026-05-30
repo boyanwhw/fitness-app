@@ -61,25 +61,29 @@
       <div id="todaySummary" style="margin-top:20px;"></div>
     </div>
 
-    <!-- 训练模式 -->
-    <div id="trainMode" style="display:none;">
-      <div class="train-mode" id="trainActive">
+    <!-- 训练浮动窗 -->
+    <div class="train-floating" id="trainFloat" style="display:none;">
+      <div class="tf-collapsed" id="tfCollapsed">
+        <div class="tf-dot"></div>
+        <div class="tf-name" id="tfName"></div>
+        <div class="tf-progress" id="tfProgress"></div>
+        <div class="tf-timer" id="tfTimer" style="display:none;">60</div>
+        <div class="tf-chevron">▸</div>
+      </div>
+      <div class="tf-expanded" id="tfExpanded">
         <div class="tm-ex-name" id="tmExName"></div>
         <div class="tm-progress" id="tmProgress"></div>
         <div class="tm-timer" id="tmTimer" style="display:none;">60</div>
         <div class="tm-timer-label" id="tmTimerLabel" style="display:none;">组间休息</div>
         <div class="tm-info" id="tmInfo"></div>
         <button class="btn btn-primary" id="tmDoneSet">✅ 完成此组</button>
-        <button class="btn btn-outline mt-8" id="tmSkipRest" style="display:none;">跳过休息</button>
-      </div>
-
-      <div class="tm-complete" id="trainComplete" style="display:none;">
-        <div class="tm-check">🎉</div>
-        <h3>训练完成！</h3>
-        <p class="text-2" style="margin:8px 0 16px;" id="tmSummary"></p>
-        <button class="btn btn-primary" id="tmBackToBuild">返回</button>
+        <button class="btn btn-outline" id="tmSkipRest" style="display:none;">跳过休息</button>
+        <button class="btn btn-sm btn-outline" id="tmExitTrain" style="width:auto;margin-top:4px;">✕ 结束训练</button>
       </div>
     </div>
+
+    <!-- 训练完成 -->
+    <div class="tm-complete" id="trainComplete" style="display:none;"></div>
 
     <!-- 保存模板弹窗 -->
     <div class="modal-overlay" id="saveModal" style="display:none;">
@@ -323,9 +327,8 @@
     function startTraining() {
       trainState = { exIdx: 0, currentSet: 1, timerId: null, isResting: false };
       completedRecords = 0;
-      document.getElementById('buildMode').style.display = 'none';
-      document.getElementById('trainMode').style.display = '';
-      document.getElementById('trainActive').style.display = '';
+      document.getElementById('trainFloat').style.display = '';
+      document.getElementById('trainFloat').classList.remove('expanded');
       document.getElementById('trainComplete').style.display = 'none';
       document.getElementById('backFromTrain').style.display = '';
       document.getElementById('pageTitle').textContent = '🏋️ 训练中';
@@ -335,15 +338,25 @@
 
     function renderTrainScreen() {
       const ex = exList[trainState.exIdx];
+      const progText = `${trainState.exIdx + 1}/${exList.length} · ${trainState.currentSet}/${ex.sets}组`;
+      const infoText = `${ex.reps}次${ex.notes ? ' · ' + ex.notes : ''}`;
+
+      // 折叠栏
+      document.getElementById('tfName').textContent = ex.name;
+      document.getElementById('tfProgress').textContent = progText;
+
+      // 展开区
       document.getElementById('tmExName').textContent = ex.name;
       document.getElementById('tmProgress').textContent = `动作 ${trainState.exIdx + 1}/${exList.length} · 第 ${trainState.currentSet}/${ex.sets} 组`;
-      document.getElementById('tmInfo').textContent = `${ex.reps} 次${ex.notes ? ' · ' + ex.notes : ''}`;
+      document.getElementById('tmInfo').textContent = infoText;
 
       document.getElementById('tmTimer').style.display = 'none';
       document.getElementById('tmTimerLabel').style.display = 'none';
+      document.getElementById('tfTimer').style.display = 'none';
       document.getElementById('tmSkipRest').style.display = 'none';
       document.getElementById('tmDoneSet').style.display = '';
       document.getElementById('tmDoneSet').textContent = `✅ 完成第 ${trainState.currentSet} 组`;
+      document.getElementById('tmExitTrain').style.display = '';
       trainState.isResting = false;
       if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
     }
@@ -356,14 +369,18 @@
       document.getElementById('tmDoneSet').style.display = 'none';
       document.getElementById('tmTimer').style.display = '';
       document.getElementById('tmTimerLabel').style.display = '';
+      document.getElementById('tfTimer').style.display = '';
       document.getElementById('tmSkipRest').style.display = '';
+      document.getElementById('tmExitTrain').style.display = 'none';
       document.getElementById('tmTimer').textContent = remaining;
+      document.getElementById('tfTimer').textContent = remaining;
       document.getElementById('tmTimerLabel').textContent = '组间休息';
 
       trainState.isResting = true;
       trainState.timerId = setInterval(() => {
         remaining--;
         document.getElementById('tmTimer').textContent = remaining;
+        document.getElementById('tfTimer').textContent = remaining;
         if (remaining <= 0) {
           clearInterval(trainState.timerId);
           trainState.timerId = null;
@@ -413,26 +430,45 @@
       advanceToNextSet();
     });
 
+    // 浮动窗折叠/展开
+    document.getElementById('tfCollapsed').addEventListener('click', () => {
+      document.getElementById('trainFloat').classList.toggle('expanded');
+    });
+
+    document.getElementById('tmExitTrain').addEventListener('click', () => {
+      if (!trainState || confirm('确定结束训练？已完成的数据已保存。')) {
+        exitTraining();
+      }
+    });
+
+    // 结束时不清除浮动窗就用 backFromTrain
     document.getElementById('backFromTrain').addEventListener('click', () => {
-      if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
-      if (!trainState || trainState.exIdx >= exList.length || confirm('确定退出训练？已完成的数据已保存。')) {
+      if (!trainState) return;
+      if (!trainState.isResting || confirm('训练还在进行中，确定退出？')) {
+        if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
         exitTraining();
       }
     });
 
     function showTrainComplete() {
-      document.getElementById('trainActive').style.display = 'none';
-      document.getElementById('trainComplete').style.display = '';
-      document.getElementById('tmSummary').textContent = `完成了 ${exList.length} 个动作，共 ${completedRecords} 组训练记录已保存`;
+      document.getElementById('trainFloat').style.display = 'none';
+      const cc = document.getElementById('trainComplete');
+      cc.style.display = '';
+      cc.innerHTML = `
+        <div class="tm-check">🎉</div>
+        <h3>训练完成！</h3>
+        <p class="text-2" style="margin:8px 0 16px;">完成了 ${exList.length} 个动作，共 ${completedRecords} 组训练记录已保存</p>
+        <button class="btn btn-primary" id="tmBackToBuild">返回</button>
+      `;
+      document.getElementById('tmBackToBuild').addEventListener('click', exitTraining);
     }
-
-    document.getElementById('tmBackToBuild').addEventListener('click', exitTraining);
 
     function exitTraining() {
       if (trainState && trainState.timerId) clearInterval(trainState.timerId);
       trainState = null;
-      document.getElementById('trainMode').style.display = 'none';
-      document.getElementById('buildMode').style.display = '';
+      document.getElementById('trainFloat').style.display = 'none';
+      document.getElementById('trainFloat').classList.remove('expanded');
+      document.getElementById('trainComplete').style.display = 'none';
       document.getElementById('backFromTrain').style.display = 'none';
       document.getElementById('pageTitle').textContent = '🏋️ 开始训练';
       document.getElementById('bottomNav').style.display = '';

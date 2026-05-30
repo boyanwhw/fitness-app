@@ -639,61 +639,115 @@ body {
   font-family: inherit;
 }
 
-/* === 训练模式 === */
-.train-mode {
+/* === 训练模式浮动窗 === */
+.train-floating {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 16px);
+  max-width: 464px;
   background: var(--bg-card);
   border: 1px solid var(--violet-border);
   border-radius: 12px;
-  padding: 20px 16px;
-  text-align: center;
-  margin-bottom: 12px;
+  z-index: 50;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
 }
-.train-mode .tm-ex-name {
+.train-floating .tf-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.train-floating .tf-collapsed .tf-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--violet);
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.train-floating .tf-collapsed .tf-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.train-floating .tf-collapsed .tf-progress {
+  font-size: 10px;
+  color: var(--violet-dim);
+  flex-shrink: 0;
+}
+.train-floating .tf-collapsed .tf-timer {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--violet-light);
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.train-floating .tf-collapsed .tf-chevron {
+  font-size: 10px;
+  color: var(--violet-dim);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.train-floating.expanded .tf-collapsed .tf-chevron {
+  transform: rotate(180deg);
+}
+.train-floating .tf-expanded {
+  display: none;
+  padding: 0 14px 14px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.train-floating.expanded .tf-expanded {
+  display: block;
+}
+.train-floating .tf-expanded .tm-ex-name {
   font-size: 18px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin: 12px 0 4px;
 }
-.train-mode .tm-progress {
+.train-floating .tf-expanded .tm-progress {
   font-size: 11px;
   color: var(--text-2);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
-.train-mode .tm-timer {
-  font-size: 48px;
+.train-floating .tf-expanded .tm-timer {
+  font-size: 42px;
   font-weight: 300;
   letter-spacing: -1px;
   color: var(--violet-light);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-variant-numeric: tabular-nums;
 }
-.train-mode .tm-timer-label {
+.train-floating .tf-expanded .tm-timer-label {
   font-size: 10px;
   color: var(--violet-dim);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
-.train-mode .tm-info {
+.train-floating .tf-expanded .tm-info {
   font-size: 11px;
   color: var(--text-2);
-  margin-bottom: 16px;
-}
-.train-mode .tm-actions {
-  display: flex;
-  gap: 8px;
-}
-.train-mode .tm-actions .btn {
-  flex: 1;
-}
-.tm-complete {
-  padding: 40px 20px;
-  text-align: center;
-  background: var(--bg-card);
-  border: 1px solid var(--violet-border);
-  border-radius: 12px;
   margin-bottom: 12px;
 }
-.tm-complete .tm-check {
-  font-size: 48px;
-  margin-bottom: 8px;
+.train-floating .tf-expanded .btn {
+  margin-bottom: 6px;
+}
+.train-floating .tf-expanded .btn-sm {
+  font-size: 11px;
+  color: var(--text-3);
 }
 
 /* === 保存模板弹窗 === */
