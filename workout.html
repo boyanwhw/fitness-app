@@ -76,6 +76,10 @@
         <div class="tm-timer" id="tmTimer" style="display:none;">60</div>
         <div class="tm-timer-label" id="tmTimerLabel" style="display:none;">组间休息</div>
         <div class="tm-info" id="tmInfo"></div>
+        <div class="tm-inputs" style="display:flex;gap:8px;margin-bottom:10px;">
+          <input type="number" id="tmRepsInput" placeholder="次数" min="1" max="100" style="flex:1;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;outline:none;font-family:inherit;text-align:center;">
+          <input type="number" id="tmWeightInput" placeholder="重量 kg" step="0.5" min="0" max="500" style="flex:1;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;outline:none;font-family:inherit;text-align:center;">
+        </div>
         <button class="btn btn-primary" id="tmDoneSet">✅ 完成此组</button>
         <button class="btn btn-outline" id="tmSkipRest" style="display:none;">跳过休息</button>
         <button class="btn btn-sm btn-outline" id="tmExitTrain" style="width:auto;margin-top:4px;">✕ 结束训练</button>
@@ -339,7 +343,7 @@
     function renderTrainScreen() {
       const ex = exList[trainState.exIdx];
       const progText = `${trainState.exIdx + 1}/${exList.length} · ${trainState.currentSet}/${ex.sets}组`;
-      const infoText = `${ex.reps}次${ex.notes ? ' · ' + ex.notes : ''}`;
+      const infoText = ex.notes || '';
 
       // 折叠栏
       document.getElementById('tfName').textContent = ex.name;
@@ -349,6 +353,8 @@
       document.getElementById('tmExName').textContent = ex.name;
       document.getElementById('tmProgress').textContent = `动作 ${trainState.exIdx + 1}/${exList.length} · 第 ${trainState.currentSet}/${ex.sets} 组`;
       document.getElementById('tmInfo').textContent = infoText;
+      document.getElementById('tmRepsInput').value = ex.reps;
+      document.getElementById('tmWeightInput').value = '';
 
       document.getElementById('tmTimer').style.display = 'none';
       document.getElementById('tmTimerLabel').style.display = 'none';
@@ -410,11 +416,14 @@
 
     document.getElementById('tmDoneSet').addEventListener('click', async () => {
       if (trainState.isResting) return;
-      // 保存这组的记录
       const ex = exList[trainState.exIdx];
+      const actualReps = parseInt(document.getElementById('tmRepsInput').value) || ex.reps;
+      const actualWeight = parseFloat(document.getElementById('tmWeightInput').value) || 0;
+
       const { error } = await supabase.from('workout_records').insert({
         user_id: user.id, exercise_id: ex.exercise_id,
-        sets: 1, reps: ex.reps, weight_kg: 0, notes: `模板训练 · ${ex.name} 第${trainState.currentSet}/${ex.sets}组`
+        sets: 1, reps: actualReps, weight_kg: actualWeight,
+        notes: `模板训练 · ${ex.name} 第${trainState.currentSet}/${ex.sets}组`
       });
       if (!error) completedRecords++;
 
