@@ -8,46 +8,93 @@
 </head>
 <body>
   <div class="topbar">
-    <h1>🏋️ 开始训练</h1>
+    <h1 id="pageTitle">🏋️ 开始训练</h1>
+    <button class="btn btn-sm btn-outline" id="backFromTrain" style="display:none;">退出训练</button>
   </div>
 
   <div class="container">
-    <div class="form-group">
-      <label>选择动作</label>
-      <select id="exerciseSelect">
-        <option value="">-- 请选择训练动作 --</option>
-      </select>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div class="form-group">
-        <label>组数</label>
-        <input type="number" id="setsInput" value="3" min="1" max="20">
+    <!-- 计划构建模式 -->
+    <div id="buildMode">
+      <!-- 模板选择栏 -->
+      <div class="template-bar">
+        <select id="templateSelect">
+          <option value="">-- 自由训练（手动选动作） --</option>
+        </select>
+        <button class="btn-icon" id="deleteTemplateBtn" title="删除模板" style="display:none;">🗑</button>
       </div>
-      <div class="form-group">
-        <label>次数</label>
-        <input type="number" id="repsInput" value="10" min="1" max="100">
+
+      <!-- 动作列表 -->
+      <div class="exercise-list" id="exerciseList"></div>
+
+      <!-- 添加动作 -->
+      <div class="ex-add-row" style="margin-bottom:10px;">
+        <select id="addExerciseSelect">
+          <option value="">+ 添加动作</option>
+        </select>
+      </div>
+
+      <!-- 动作编辑区 -->
+      <div id="editExercisePanel" style="display:none;">
+        <div class="body-form" style="margin-bottom:8px;">
+          <div class="form-row">
+            <div><label style="font-size:10px;color:var(--violet-dim);">组数</label><input type="number" id="editSets" value="3" min="1" max="20"></div>
+            <div><label style="font-size:10px;color:var(--violet-dim);">次数</label><input type="number" id="editReps" value="10" min="1" max="100"></div>
+            <div><label style="font-size:10px;color:var(--violet-dim);">间歇(秒)</label><input type="number" id="editRest" value="60" min="10" max="600" step="5"></div>
+          </div>
+          <div class="form-full" style="margin-top:6px;">
+            <label style="font-size:10px;color:var(--violet-dim);">备注（可选）</label>
+            <input type="text" id="editNotes" placeholder="如：控制离心、最后一组力竭">
+          </div>
+        </div>
+      </div>
+
+      <div id="exerciseListEmpty" class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>选择一个模板或手动添加动作</p>
+      </div>
+
+      <!-- 操作按钮 -->
+      <button class="btn btn-outline mb-8" id="saveTemplateBtn">💾 保存为我的模板</button>
+      <button class="btn btn-primary mb-8" id="startTrainBtn">▶ 开始训练</button>
+
+      <!-- 今日已录记录摘要 -->
+      <div id="todaySummary" style="margin-top:20px;"></div>
+    </div>
+
+    <!-- 训练模式 -->
+    <div id="trainMode" style="display:none;">
+      <div class="train-mode" id="trainActive">
+        <div class="tm-ex-name" id="tmExName"></div>
+        <div class="tm-progress" id="tmProgress"></div>
+        <div class="tm-timer" id="tmTimer" style="display:none;">60</div>
+        <div class="tm-timer-label" id="tmTimerLabel" style="display:none;">组间休息</div>
+        <div class="tm-info" id="tmInfo"></div>
+        <button class="btn btn-primary" id="tmDoneSet">✅ 完成此组</button>
+        <button class="btn btn-outline mt-8" id="tmSkipRest" style="display:none;">跳过休息</button>
+      </div>
+
+      <div class="tm-complete" id="trainComplete" style="display:none;">
+        <div class="tm-check">🎉</div>
+        <h3>训练完成！</h3>
+        <p class="text-2" style="margin:8px 0 16px;" id="tmSummary"></p>
+        <button class="btn btn-primary" id="tmBackToBuild">返回</button>
       </div>
     </div>
 
-    <div class="form-group">
-      <label>重量（kg，可选）</label>
-      <input type="number" id="weightInput" placeholder="留空表示自重训练" step="0.5" min="0">
+    <!-- 保存模板弹窗 -->
+    <div class="modal-overlay" id="saveModal" style="display:none;">
+      <div class="modal-box">
+        <h3>保存训练模板</h3>
+        <input type="text" id="templateNameInput" placeholder="输入模板名称，如「周一推胸日」" maxlength="30">
+        <div class="modal-btns">
+          <button class="btn btn-outline" id="cancelSaveBtn">取消</button>
+          <button class="btn btn-primary" id="confirmSaveBtn">保存</button>
+        </div>
+      </div>
     </div>
-
-    <div class="form-group">
-      <label>备注（可选）</label>
-      <input type="text" id="notesInput" placeholder="如：状态不错、最后一组力竭...">
-    </div>
-
-    <button class="btn btn-primary" id="saveRecordBtn">💾 保存记录</button>
-    <p id="saveMsg" class="text-center mt-8" style="min-height:24px;"></p>
-
-    <h3 style="margin:24px 0 12px;">本次训练记录</h3>
-    <div id="sessionRecords"></div>
   </div>
 
-  <nav class="bottom-nav">
+  <nav class="bottom-nav" id="bottomNav">
     <a href="index.html"><span class="nav-icon">📊</span>首页</a>
     <a href="workout.html" class="active"><span class="nav-icon">🏋️</span>训练</a>
     <a href="exercises.html"><span class="nav-icon">📚</span>动作库</a>
@@ -58,119 +105,356 @@
     import { supabase, requireAuth } from './js/app.js';
 
     let user = null;
+    let allExercises = [];
+    let allTemplates = [];
+    let exList = [];          // [{exercise_id, name, sets, reps, rest_seconds, notes}]
+    let selectedTemplateId = null;
+    let editingExIdx = -1;
 
-    document.getElementById('saveRecordBtn').addEventListener('click', saveRecord);
-    document.getElementById('sessionRecords').addEventListener('click', (e) => {
-      const btn = e.target.closest('.delete-btn');
-      if (btn) deleteRecord(btn.dataset.id);
-    });
+    // 训练模式状态
+    let trainState = null;    // {exIdx, currentSet, timerId, isResting}
+    let completedRecords = 0;
 
+    // ========== 初始化 ==========
     async function initPage() {
       user = await requireAuth();
       if (!user) return;
 
-      const { data: exercises } = await supabase
-        .from('exercises')
-        .select('*')
-        .order('muscle_group')
-        .order('name');
+      const { data: exData } = await supabase.from('exercises').select('*').order('muscle_group').order('name');
+      allExercises = exData || [];
 
-      const select = document.getElementById('exerciseSelect');
-      const groups = {};
-      (exercises || []).forEach(e => {
-        if (!groups[e.muscle_group]) groups[e.muscle_group] = [];
-        groups[e.muscle_group].push(e);
-      });
-
-      select.innerHTML = '<option value="">-- 请选择训练动作 --</option>';
-      Object.entries(groups).forEach(([group, exs]) => {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = group;
-        exs.forEach(e => {
-          const opt = document.createElement('option');
-          opt.value = e.id;
-          opt.textContent = e.name;
-          optgroup.appendChild(opt);
-        });
-        select.appendChild(optgroup);
-      });
-
-      loadSessionRecords();
+      await loadTemplates();
+      fillExerciseSelects();
+      loadTodaySummary();
     }
 
-    async function saveRecord() {
-      const exerciseId = document.getElementById('exerciseSelect').value;
-      const sets = parseInt(document.getElementById('setsInput').value);
-      const reps = parseInt(document.getElementById('repsInput').value);
-      const weight = parseFloat(document.getElementById('weightInput').value) || 0;
-      const notes = document.getElementById('notesInput').value;
+    async function loadTemplates() {
+      const { data: presets } = await supabase.from('workout_templates').select('*').is('user_id', null).order('name');
+      const { data: mine } = await supabase.from('workout_templates').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
 
-      if (!exerciseId) return showMsg('请先选择训练动作', true);
-      if (!sets || !reps) return showMsg('请填写组数和次数', true);
+      allTemplates = [...(presets || []), ...(mine || [])];
 
-      const { error } = await supabase.from('workout_records').insert({
-        user_id: user.id,
-        exercise_id: exerciseId,
-        sets: sets,
-        reps: reps,
-        weight_kg: weight,
-        notes: notes
-      });
-
-      if (error) {
-        showMsg('保存失败: ' + error.message, true);
-      } else {
-        showMsg('保存成功！', false);
-        document.getElementById('notesInput').value = '';
-        document.getElementById('weightInput').value = '';
-        loadSessionRecords();
+      const sel = document.getElementById('templateSelect');
+      sel.innerHTML = '<option value="">-- 自由训练（手动选动作） --</option>';
+      if (presets && presets.length > 0) {
+        const og = document.createElement('optgroup');
+        og.label = '预设模板';
+        presets.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; og.appendChild(o); });
+        sel.appendChild(og);
+      }
+      if (mine && mine.length > 0) {
+        const og = document.createElement('optgroup');
+        og.label = '我的模板';
+        mine.forEach(t => { const o = document.createElement('option'); o.value = t.id; o.textContent = t.name; og.appendChild(o); });
+        sel.appendChild(og);
       }
     }
 
-    async function loadSessionRecords() {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    function fillExerciseSelects() {
+      const groups = {};
+      allExercises.forEach(e => { if (!groups[e.muscle_group]) groups[e.muscle_group] = []; groups[e.muscle_group].push(e); });
 
-      const { data } = await supabase
-        .from('workout_records')
-        .select('id, sets, reps, weight_kg, notes, created_at, exercises!inner(name, muscle_group)')
-        .eq('user_id', user.id)
-        .gte('created_at', today.toISOString())
-        .order('created_at', { ascending: false });
+      [document.getElementById('addExerciseSelect')].forEach(sel => {
+        sel.innerHTML = '<option value="">+ 添加动作</option>';
+        Object.entries(groups).forEach(([g, exs]) => {
+          const og = document.createElement('optgroup');
+          og.label = g;
+          exs.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.name; og.appendChild(o); });
+          sel.appendChild(og);
+        });
+      });
+    }
 
-      const records = data || [];
-      const container = document.getElementById('sessionRecords');
-
-      if (records.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>今天还没有训练记录</p></div>';
+    // ========== 模板选择 ==========
+    document.getElementById('templateSelect').addEventListener('change', async (e) => {
+      const tid = e.target.value;
+      if (!tid) {
+        selectedTemplateId = null;
+        document.getElementById('deleteTemplateBtn').style.display = 'none';
         return;
       }
+      selectedTemplateId = tid;
+      const t = allTemplates.find(t => t.id === tid);
+      document.getElementById('deleteTemplateBtn').style.display = t && !t.is_preset ? '' : 'none';
 
-      container.innerHTML = records.map(r => `
-        <div class="card">
-          <div class="flex-between">
-            <div>
-              <div class="workout-name">${r.exercises.name}</div>
-              <div class="workout-detail">${r.sets}组 × ${r.reps}次 ${r.weight_kg ? r.weight_kg + 'kg' : '自重'}</div>
-              ${r.notes ? `<div class="workout-detail">📝 ${r.notes}</div>` : ''}
-            </div>
-            <button class="btn btn-sm btn-danger delete-btn" data-id="${r.id}">删除</button>
+      const { data: items } = await supabase.from('template_exercises')
+        .select('exercise_id, sets, reps, rest_seconds, notes, exercises!inner(name)')
+        .eq('template_id', tid).order('sort_order');
+
+      exList = (items || []).map(i => ({
+        exercise_id: i.exercise_id,
+        name: i.exercises.name,
+        sets: i.sets, reps: i.reps,
+        rest_seconds: i.rest_seconds,
+        notes: i.notes || ''
+      }));
+      renderExList();
+    });
+
+    document.getElementById('deleteTemplateBtn').addEventListener('click', async () => {
+      if (!selectedTemplateId) return;
+      const t = allTemplates.find(t => t.id === selectedTemplateId);
+      if (!t || t.is_preset) return;
+      if (!confirm(`删除模板「${t.name}」？`)) return;
+      await supabase.from('workout_templates').delete().eq('id', selectedTemplateId);
+      selectedTemplateId = null;
+      document.getElementById('templateSelect').value = '';
+      document.getElementById('deleteTemplateBtn').style.display = 'none';
+      await loadTemplates();
+    });
+
+    // ========== 添加动作 ==========
+    document.getElementById('addExerciseSelect').addEventListener('change', (e) => {
+      const eid = e.target.value;
+      if (!eid) return;
+      const ex = allExercises.find(x => x.id === eid);
+      if (!ex) return;
+      exList.push({ exercise_id: eid, name: ex.name, sets: 3, reps: 10, rest_seconds: 60, notes: '' });
+      editingExIdx = exList.length - 1;
+      showEditPanel();
+      renderExList();
+      e.target.value = '';
+    });
+
+    function showEditPanel() {
+      if (editingExIdx < 0 || editingExIdx >= exList.length) {
+        document.getElementById('editExercisePanel').style.display = 'none';
+        return;
+      }
+      const item = exList[editingExIdx];
+      document.getElementById('editExercisePanel').style.display = '';
+      document.getElementById('editSets').value = item.sets;
+      document.getElementById('editReps').value = item.reps;
+      document.getElementById('editRest').value = item.rest_seconds;
+      document.getElementById('editNotes').value = item.notes;
+    }
+
+    ['editSets','editReps','editRest','editNotes'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (editingExIdx >= 0 && editingExIdx < exList.length) {
+          exList[editingExIdx].sets = parseInt(document.getElementById('editSets').value) || 3;
+          exList[editingExIdx].reps = parseInt(document.getElementById('editReps').value) || 10;
+          exList[editingExIdx].rest_seconds = parseInt(document.getElementById('editRest').value) || 60;
+          exList[editingExIdx].notes = document.getElementById('editNotes').value;
+          renderExList();
+        }
+      });
+    });
+
+    function renderExList() {
+      const container = document.getElementById('exerciseList');
+      const empty = document.getElementById('exerciseListEmpty');
+      if (exList.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = '';
+        document.getElementById('editExercisePanel').style.display = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+
+      container.innerHTML = exList.map((item, i) => `
+        <div class="ex-item" style="${i === editingExIdx ? 'border-color:var(--violet);' : ''}">
+          <div class="ex-num">${i + 1}</div>
+          <div class="ex-info">
+            <div class="ex-name">${item.name}</div>
+            <div class="ex-detail">${item.sets}组 × ${item.reps}次 · 间歇${item.rest_seconds}s${item.notes ? ' · ' + item.notes : ''}</div>
           </div>
+          <button class="ex-remove" data-idx="${i}" title="移除">×</button>
         </div>
       `).join('');
+
+      // 点击动作项 → 编辑
+      container.querySelectorAll('.ex-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.ex-remove')) return;
+          editingExIdx = parseInt(el.querySelector('.ex-remove').dataset.idx);
+          showEditPanel();
+          renderExList();
+        });
+      });
+
+      // 移除按钮
+      container.querySelectorAll('.ex-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          exList.splice(idx, 1);
+          if (editingExIdx === idx) editingExIdx = -1;
+          else if (editingExIdx > idx) editingExIdx--;
+          renderExList();
+        });
+      });
     }
 
-    async function deleteRecord(id) {
-      if (!confirm('确定要删除这条记录吗？')) return;
-      await supabase.from('workout_records').delete().eq('id', id);
-      loadSessionRecords();
+    // ========== 保存模板 ==========
+    document.getElementById('saveTemplateBtn').addEventListener('click', () => {
+      if (exList.length === 0) { alert('请先添加至少一个动作'); return; }
+      document.getElementById('saveModal').style.display = '';
+      document.getElementById('templateNameInput').value = '';
+      document.getElementById('templateNameInput').focus();
+    });
+    document.getElementById('cancelSaveBtn').addEventListener('click', () => { document.getElementById('saveModal').style.display = 'none'; });
+    document.getElementById('confirmSaveBtn').addEventListener('click', async () => {
+      const name = document.getElementById('templateNameInput').value.trim();
+      if (!name) { alert('请输入模板名称'); return; }
+
+      const { data: t, error } = await supabase.from('workout_templates').insert({ user_id: user.id, name, is_preset: false }).select().single();
+      if (error) { alert('保存失败: ' + error.message); return; }
+
+      const items = exList.map((ex, i) => ({
+        template_id: t.id, exercise_id: ex.exercise_id,
+        sort_order: i, sets: ex.sets, reps: ex.reps,
+        rest_seconds: ex.rest_seconds, notes: ex.notes
+      }));
+      await supabase.from('template_exercises').insert(items);
+
+      document.getElementById('saveModal').style.display = 'none';
+      await loadTemplates();
+      document.getElementById('templateSelect').value = t.id;
+      selectedTemplateId = t.id;
+      document.getElementById('deleteTemplateBtn').style.display = '';
+    });
+
+    // ========== 开始训练 ==========
+    document.getElementById('startTrainBtn').addEventListener('click', () => {
+      if (exList.length === 0) { alert('请先添加至少一个训练动作'); return; }
+      startTraining();
+    });
+
+    function startTraining() {
+      trainState = { exIdx: 0, currentSet: 1, timerId: null, isResting: false };
+      completedRecords = 0;
+      document.getElementById('buildMode').style.display = 'none';
+      document.getElementById('trainMode').style.display = '';
+      document.getElementById('trainActive').style.display = '';
+      document.getElementById('trainComplete').style.display = 'none';
+      document.getElementById('backFromTrain').style.display = '';
+      document.getElementById('pageTitle').textContent = '🏋️ 训练中';
+      document.getElementById('bottomNav').style.display = 'none';
+      renderTrainScreen();
     }
 
-    function showMsg(text, isError) {
-      const el = document.getElementById('saveMsg');
-      el.textContent = text;
-      el.style.color = isError ? 'var(--danger)' : 'var(--accent)';
-      setTimeout(() => { el.textContent = ''; }, 3000);
+    function renderTrainScreen() {
+      const ex = exList[trainState.exIdx];
+      document.getElementById('tmExName').textContent = ex.name;
+      document.getElementById('tmProgress').textContent = `动作 ${trainState.exIdx + 1}/${exList.length} · 第 ${trainState.currentSet}/${ex.sets} 组`;
+      document.getElementById('tmInfo').textContent = `${ex.reps} 次${ex.notes ? ' · ' + ex.notes : ''}`;
+
+      document.getElementById('tmTimer').style.display = 'none';
+      document.getElementById('tmTimerLabel').style.display = 'none';
+      document.getElementById('tmSkipRest').style.display = 'none';
+      document.getElementById('tmDoneSet').style.display = '';
+      document.getElementById('tmDoneSet').textContent = `✅ 完成第 ${trainState.currentSet} 组`;
+      trainState.isResting = false;
+      if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
+    }
+
+    function startRestTimer() {
+      if (trainState.timerId) clearInterval(trainState.timerId);
+      const ex = exList[trainState.exIdx];
+      let remaining = ex.rest_seconds;
+
+      document.getElementById('tmDoneSet').style.display = 'none';
+      document.getElementById('tmTimer').style.display = '';
+      document.getElementById('tmTimerLabel').style.display = '';
+      document.getElementById('tmSkipRest').style.display = '';
+      document.getElementById('tmTimer').textContent = remaining;
+      document.getElementById('tmTimerLabel').textContent = '组间休息';
+
+      trainState.isResting = true;
+      trainState.timerId = setInterval(() => {
+        remaining--;
+        document.getElementById('tmTimer').textContent = remaining;
+        if (remaining <= 0) {
+          clearInterval(trainState.timerId);
+          trainState.timerId = null;
+          advanceToNextSet();
+        }
+      }, 1000);
+    }
+
+    function advanceToNextSet() {
+      if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
+      const ex = exList[trainState.exIdx];
+      if (trainState.currentSet < ex.sets) {
+        trainState.currentSet++;
+        renderTrainScreen();
+      } else {
+        // 当前动作所有组完成
+        trainState.exIdx++;
+        trainState.currentSet = 1;
+        if (trainState.exIdx < exList.length) {
+          renderTrainScreen();
+        } else {
+          // 全部完成
+          showTrainComplete();
+        }
+      }
+    }
+
+    document.getElementById('tmDoneSet').addEventListener('click', async () => {
+      if (trainState.isResting) return;
+      // 保存这组的记录
+      const ex = exList[trainState.exIdx];
+      const { error } = await supabase.from('workout_records').insert({
+        user_id: user.id, exercise_id: ex.exercise_id,
+        sets: 1, reps: ex.reps, weight_kg: 0, notes: `模板训练 · ${ex.name} 第${trainState.currentSet}/${ex.sets}组`
+      });
+      if (!error) completedRecords++;
+
+      if (trainState.currentSet < ex.sets) {
+        startRestTimer();
+      } else {
+        advanceToNextSet();
+      }
+    });
+
+    document.getElementById('tmSkipRest').addEventListener('click', () => {
+      if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
+      advanceToNextSet();
+    });
+
+    document.getElementById('backFromTrain').addEventListener('click', () => {
+      if (trainState.timerId) { clearInterval(trainState.timerId); trainState.timerId = null; }
+      if (!trainState || trainState.exIdx >= exList.length || confirm('确定退出训练？已完成的数据已保存。')) {
+        exitTraining();
+      }
+    });
+
+    function showTrainComplete() {
+      document.getElementById('trainActive').style.display = 'none';
+      document.getElementById('trainComplete').style.display = '';
+      document.getElementById('tmSummary').textContent = `完成了 ${exList.length} 个动作，共 ${completedRecords} 组训练记录已保存`;
+    }
+
+    document.getElementById('tmBackToBuild').addEventListener('click', exitTraining);
+
+    function exitTraining() {
+      if (trainState && trainState.timerId) clearInterval(trainState.timerId);
+      trainState = null;
+      document.getElementById('trainMode').style.display = 'none';
+      document.getElementById('buildMode').style.display = '';
+      document.getElementById('backFromTrain').style.display = 'none';
+      document.getElementById('pageTitle').textContent = '🏋️ 开始训练';
+      document.getElementById('bottomNav').style.display = '';
+      loadTodaySummary();
+    }
+
+    // ========== 今日摘要 ==========
+    async function loadTodaySummary() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data } = await supabase.from('workout_records')
+        .select('id, sets, reps, weight_kg, created_at, exercises!inner(name)')
+        .eq('user_id', user.id).gte('created_at', today.toISOString()).order('created_at', { ascending: false });
+
+      const records = data || [];
+      const container = document.getElementById('todaySummary');
+      if (records.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = `<h3 style="margin-bottom:8px;">今日已记录 ${records.length} 组</h3><div class="text-2" style="font-size:11px;">` +
+        records.map(r => `${r.exercises.name} ${r.sets}组×${r.reps}次`).join(' · ') + '</div>';
     }
 
     initPage();

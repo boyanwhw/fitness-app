@@ -536,3 +536,208 @@ body {
   width: 100% !important;
   height: 100% !important;
 }
+
+/* === 训练模板选择栏 === */
+.template-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.template-bar select {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+}
+.template-bar select:focus {
+  border-color: var(--violet);
+}
+.template-bar .btn-icon {
+  width: 36px;
+  padding: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === 动作列表项 === */
+.exercise-list {
+  margin-bottom: 12px;
+}
+.ex-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.ex-item .ex-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--violet-bg);
+  color: var(--violet);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ex-item .ex-info {
+  flex: 1;
+  min-width: 0;
+}
+.ex-item .ex-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+.ex-item .ex-detail {
+  font-size: 10px;
+  color: var(--text-2);
+  margin-top: 1px;
+}
+.ex-item .ex-remove {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.ex-item .ex-remove:hover {
+  color: var(--danger);
+}
+.ex-add-row {
+  display: flex;
+  gap: 6px;
+}
+.ex-add-row select {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+}
+
+/* === 训练模式 === */
+.train-mode {
+  background: var(--bg-card);
+  border: 1px solid var(--violet-border);
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.train-mode .tm-ex-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.train-mode .tm-progress {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 16px;
+}
+.train-mode .tm-timer {
+  font-size: 48px;
+  font-weight: 300;
+  letter-spacing: -1px;
+  color: var(--violet-light);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.train-mode .tm-timer-label {
+  font-size: 10px;
+  color: var(--violet-dim);
+  margin-bottom: 12px;
+}
+.train-mode .tm-info {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 16px;
+}
+.train-mode .tm-actions {
+  display: flex;
+  gap: 8px;
+}
+.train-mode .tm-actions .btn {
+  flex: 1;
+}
+.tm-complete {
+  padding: 40px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--violet-border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.tm-complete .tm-check {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+/* === 保存模板弹窗 === */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 360px;
+}
+.modal-box h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.modal-box input {
+  width: 100%;
+  padding: 9px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  margin-bottom: 12px;
+}
+.modal-box input:focus {
+  border-color: var(--violet);
+}
+.modal-box .modal-btns {
+  display: flex;
+  gap: 8px;
+}
+.modal-box .modal-btns .btn {
+  flex: 1;
+}
