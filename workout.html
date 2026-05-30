@@ -75,6 +75,7 @@
         <div class="tm-progress" id="tmProgress"></div>
         <div class="tm-timer" id="tmTimer" style="display:none;">60</div>
         <div class="tm-timer-label" id="tmTimerLabel" style="display:none;">组间休息</div>
+        <canvas class="tm-img" id="tmImg" width="360" height="180" style="display:none;"></canvas>
         <div class="tm-info" id="tmInfo"></div>
         <div class="tm-inputs" style="display:flex;gap:8px;margin-bottom:10px;">
           <input type="number" id="tmRepsInput" placeholder="次数" min="1" max="100" style="flex:1;padding:9px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;outline:none;font-family:inherit;text-align:center;">
@@ -111,6 +112,7 @@
 
   <script type="module">
     import { supabase, requireAuth } from './js/app.js';
+    import { StickmanAnimator, Exercises } from './js/stickman.js';
 
     let user = null;
     let allExercises = [];
@@ -118,6 +120,8 @@
     let exList = [];          // [{exercise_id, name, sets, reps, rest_seconds, notes}]
     let selectedTemplateId = null;
     let editingExIdx = -1;
+
+    let trainAnimator = null; // training panel canvas animator
 
     // 训练模式状态
     let trainState = null;    // {exIdx, currentSet, timerId, isResting}
@@ -356,6 +360,19 @@
       document.getElementById('tmRepsInput').value = ex.reps;
       document.getElementById('tmWeightInput').value = '';
 
+      // 动作演示图 - Canvas 棍子人
+      const tmImg = document.getElementById('tmImg');
+      const exDef = Exercises[ex.name];
+      if (exDef) {
+        tmImg.style.display = '';
+        if (trainAnimator) trainAnimator.stop();
+        trainAnimator = new StickmanAnimator(tmImg, ex.name);
+        trainAnimator.start();
+        tmImg.onclick = () => showExCarousel(ex.name);
+      } else {
+        tmImg.style.display = 'none';
+      }
+
       document.getElementById('tmTimer').style.display = 'none';
       document.getElementById('tmTimerLabel').style.display = 'none';
       document.getElementById('tfTimer').style.display = 'none';
@@ -460,6 +477,7 @@
     });
 
     function showTrainComplete() {
+      if (trainAnimator) { trainAnimator.stop(); trainAnimator = null; }
       document.getElementById('trainFloat').style.display = 'none';
       const cc = document.getElementById('trainComplete');
       cc.style.display = '';
@@ -474,6 +492,8 @@
 
     function exitTraining() {
       if (trainState && trainState.timerId) clearInterval(trainState.timerId);
+      if (trainAnimator) { trainAnimator.stop(); trainAnimator = null; }
+      closeExModal();
       trainState = null;
       document.getElementById('trainFloat').style.display = 'none';
       document.getElementById('trainFloat').classList.remove('expanded');
@@ -500,6 +520,59 @@
       }
       container.innerHTML = `<h3 style="margin-bottom:8px;">今日已记录 ${records.length} 组</h3><div class="text-2" style="font-size:11px;">` +
         records.map(r => `${r.exercises.name} ${r.sets}组×${r.reps}次`).join(' · ') + '</div>';
+    }
+
+    // ========== 动作演示图轮播 ==========
+    function showExCarousel(name) {
+      closeExModal();
+
+      const exDef = Exercises[name];
+      if (!exDef) return;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'img-modal-overlay';
+      overlay.innerHTML = `
+        <button class="img-close">✕</button>
+        <div class="img-name">${name}</div>
+        <div class="img-stage">
+          <canvas id="exModalCanvas" width="400" height="300"></canvas>
+        </div>
+        <div class="img-nav">
+          <button class="img-slower">🐢</button>
+          <button class="img-auto-play">⏸ 暂停</button>
+          <button class="img-faster">🐇</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const canvas = document.getElementById('exModalCanvas');
+      const anim = new StickmanAnimator(canvas, name);
+      anim.start();
+      window._exModal = { anim, overlay };
+
+      const playBtn = overlay.querySelector('.img-auto-play');
+      playBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (anim.running) { anim.stop(); playBtn.textContent = '▶ 播放'; }
+        else { anim.start(); playBtn.textContent = '⏸ 暂停'; }
+      };
+      overlay.querySelector('.img-slower').onclick = (e) => {
+        e.stopPropagation(); anim.speed = Math.max(0.004, anim.speed - 0.004);
+      };
+      overlay.querySelector('.img-faster').onclick = (e) => {
+        e.stopPropagation(); anim.speed = Math.min(0.04, anim.speed + 0.004);
+      };
+      overlay.querySelector('.img-close').onclick = () => closeExModal();
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeExModal(); });
+      const keyH = (e) => { if (e.key === 'Escape') { closeExModal(); document.removeEventListener('keydown', keyH); } };
+      document.addEventListener('keydown', keyH);
+    }
+
+    function closeExModal() {
+      if (!window._exModal) return;
+      window._exModal.anim.stop();
+      window._exModal.overlay.remove();
+      window._exModal = null;
     }
 
     initPage();

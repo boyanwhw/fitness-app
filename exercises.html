@@ -34,9 +34,79 @@
 
   <script type="module">
     import { supabase, requireAuth } from './js/app.js';
+    import { StickmanAnimator, Exercises } from './js/stickman.js';
 
     let allExercises = [];
     let currentGroup = 'all';
+    let activeModal = null; // { animator, overlay }
+
+    // Shared animation loop for thumbnail canvases
+    const thumbStates = new Map(); // canvas -> { phase, speed }
+    let globalRaf = null;
+
+    function startGlobalLoop() {
+      if (globalRaf) return;
+      function tick() {
+        thumbStates.forEach((st, cv) => {
+          st.phase += st.speed;
+          if (st.phase > 1) st.phase -= 1;
+          drawPoseOnCanvas(cv, st.name, st.phase);
+        });
+        globalRaf = requestAnimationFrame(tick);
+      }
+      globalRaf = requestAnimationFrame(tick);
+    }
+
+    function drawPoseOnCanvas(canvas, exerciseName, phase) {
+      const def = Exercises[exerciseName];
+      if (!def) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      const pose = def.getPose(phase);
+      if (!pose) return;
+      drawMiniStickman(ctx, pose, w / 2, h / 2, Math.min(w, h) * 0.42);
+    }
+
+    function drawMiniStickman(ctx, pose, cx, cy, s) {
+      const pt = (p) => [cx + p.x * s, cy + p.y * s];
+      ctx.strokeStyle = '#ededed';
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
+
+      function line(a, b, c) {
+        if (!a || !b) return;
+        ctx.strokeStyle = c || '#ededed';
+        ctx.beginPath(); ctx.moveTo(...pt(a)); ctx.lineTo(...pt(b)); ctx.stroke();
+      }
+      function circle(p, r, f) {
+        if (!p) return;
+        ctx.fillStyle = f || '#ededed';
+        ctx.beginPath(); ctx.arc(...pt(p), r, 0, Math.PI * 2); ctx.fill();
+      }
+
+      line(pose.neck, pose.hip, '#c4b5fd');
+      line(pose.lShoulder, pose.rShoulder, '#7c6aaa');
+      line(pose.lShoulder, pose.lElbow); line(pose.lElbow, pose.lHand);
+      line(pose.rShoulder, pose.rElbow); line(pose.rElbow, pose.rHand);
+      line(pose.hip || pose.lHip, pose.lKnee); line(pose.lKnee, pose.lFoot);
+      line(pose.hip || pose.rHip, pose.rKnee); line(pose.rKnee, pose.rFoot);
+
+      if (pose.barLeft && pose.barRight) {
+        ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(...pt(pose.barLeft)); ctx.lineTo(...pt(pose.barRight)); ctx.stroke();
+        ctx.lineWidth = 1.8;
+      }
+
+      ['lShoulder','rShoulder','lElbow','rElbow','lHand','rHand','lHip','rHip','lKnee','rKnee','lFoot','rFoot']
+        .forEach(j => { if (pose[j]) circle(pose[j], 2, '#ededed'); });
+      if (pose.hip) circle(pose.hip, 2.5, '#c4b5fd');
+
+      // Head
+      ctx.strokeStyle = '#ededed'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(...pt(pose.head), 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1.8;
+    }
 
     async function loadExercises() {
       await requireAuth();
@@ -50,6 +120,9 @@
     }
 
     function renderExercises() {
+      // Clean up old thumb states
+      thumbStates.clear();
+
       const filtered = currentGroup === 'all'
         ? allExercises
         : allExercises.filter(e => e.muscle_group === currentGroup);
@@ -69,21 +142,99 @@
       container.innerHTML = Object.entries(groups).map(([group, exercises]) => `
         <div class="mb-16">
           <h3 style="color:var(--accent);margin-bottom:8px;">${group}</h3>
-          ${exercises.map(e => `
-            <div class="card" style="cursor:pointer;" onclick="showDetail('${e.id}')">
-              <div class="workout-name">${e.name}</div>
-              <div class="workout-detail mt-8">${e.description || '暂无说明'}</div>
-            </div>
-          `).join('')}
+          ${exercises.map((e, i) => `
+            <div class="card" style="cursor:pointer;" data-id="${e.id}" data-name="${escapeHtml(e.name)}" data-idx="${i}">
+              <div class="ex-card-inner">
+                <canvas class="ex-thumb" id="tc-${e.id}" width="48" height="48"></canvas>
+                <div>
+                  <div class="workout-name">${e.name}</div>
+                  <div class="workout-detail mt-8">${e.description || '暂无说明'}</div>
+                </div>
+              </div>
+            </div>`).join('')}
         </div>
       `).join('');
+
+      // Initialize thumbnail canvases
+      filtered.forEach(e => {
+        const cv = document.getElementById(`tc-${e.id}`);
+        if (!cv) return;
+        const name = e.name;
+        // Initial draw
+        drawPoseOnCanvas(cv, name, 0);
+        // Register for animation
+        thumbStates.set(cv, { name, phase: Math.random(), speed: 0.012 });
+      });
+
+      startGlobalLoop();
+
+      // Click handler
+      container.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', () => showModal(card.dataset.id, card.dataset.name));
+      });
     }
 
-    function showDetail(id) {
-      const ex = allExercises.find(e => e.id === id);
-      if (ex) {
-        alert(`${ex.name}\n\n肌群: ${ex.muscle_group}\n说明: ${ex.description || '暂无'}`);
-      }
+    function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function showModal(id, name) {
+      // Close existing modal
+      if (activeModal) closeModal();
+
+      const exDef = Exercises[name];
+      if (!exDef) { alert(name + '\n暂无演示动画'); return; }
+
+      const overlay = document.createElement('div');
+      overlay.className = 'img-modal-overlay';
+      overlay.innerHTML = `
+        <button class="img-close">✕</button>
+        <div class="img-name">${name}</div>
+        <div class="img-stage">
+          <canvas class="img-frame" id="modalCanvas" width="400" height="300"></canvas>
+        </div>
+        <div class="img-nav">
+          <button class="img-slower">🐢</button>
+          <button class="img-auto-play">⏸ 暂停</button>
+          <button class="img-faster">🐇</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const canvas = document.getElementById('modalCanvas');
+      const animator = new StickmanAnimator(canvas, name);
+      animator.start();
+
+      activeModal = { animator, overlay };
+
+      const playBtn = overlay.querySelector('.img-auto-play');
+      playBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (animator.running) { animator.stop(); playBtn.textContent = '▶ 播放'; }
+        else { animator.start(); playBtn.textContent = '⏸ 暂停'; }
+      };
+
+      overlay.querySelector('.img-slower').onclick = (e) => {
+        e.stopPropagation();
+        animator.speed = Math.max(0.004, animator.speed - 0.004);
+      };
+      overlay.querySelector('.img-faster').onclick = (e) => {
+        e.stopPropagation();
+        animator.speed = Math.min(0.04, animator.speed + 0.004);
+      };
+
+      overlay.querySelector('.img-close').onclick = () => closeModal();
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+      const keyH = (e) => {
+        if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', keyH); }
+      };
+      document.addEventListener('keydown', keyH);
+    }
+
+    function closeModal() {
+      if (!activeModal) return;
+      activeModal.animator.stop();
+      activeModal.overlay.remove();
+      activeModal = null;
     }
 
     document.getElementById('muscleTags').addEventListener('click', (e) => {

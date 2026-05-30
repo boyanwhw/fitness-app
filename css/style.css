@@ -795,3 +795,125 @@ body {
 .modal-box .modal-btns .btn {
   flex: 1;
 }
+
+/* === 动作图片缩略图 === */
+.ex-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.ex-thumb:hover {
+  border-color: var(--violet);
+}
+.ex-card-inner {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* === 图片轮播弹窗 === */
+.img-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.img-modal-overlay .img-stage {
+  position: relative;
+  width: 92vw;
+  max-width: 400px;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-modal-overlay .img-frame {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+  object-fit: contain;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  transition: opacity 0.2s ease;
+}
+.img-modal-overlay .img-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.img-modal-overlay .img-counter {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 8px;
+}
+.img-modal-overlay .img-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  align-items: center;
+}
+.img-modal-overlay .img-nav button {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.img-modal-overlay .img-nav button:hover {
+  background: rgba(255,255,255,0.15);
+}
+.img-modal-overlay .img-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.img-modal-overlay .img-auto play {
+  font-size: 12px;
+  color: var(--violet-light);
+  background: none;
+  border: 1px solid var(--violet-border);
+  border-radius: 14px;
+  padding: 5px 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* === 训练面板动作图片 === */
+.tf-expanded .tm-img {
+  width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: block;
+}
